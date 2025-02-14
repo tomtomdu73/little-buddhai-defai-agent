@@ -4,11 +4,9 @@ const BASE_URL =
     "https://rest.coinapi.io/v1/quotes/BINANCE_SPOT_ETH_USDC/history?limit=1";
 
 export const createCoinAPIService = (apiKey: string) => {
-    const getEthPrice = async ({
-        time_start,
-    }: {
-        time_start?: string;
-    }): Promise<GetEthPriceResponse> => {
+    const getEthPrice = async (
+        time_start: string
+    ): Promise<GetEthPriceResponse> => {
         if (!apiKey) {
             throw new Error("Invalid parameters");
         }
@@ -17,6 +15,7 @@ export const createCoinAPIService = (apiKey: string) => {
             const url = BASE_URL + "&time_start=" + time_start;
             const response = await fetch(url, {
                 headers: {
+                    Accept: "application/json",
                     "X-CoinAPI-Key": apiKey,
                 },
             });

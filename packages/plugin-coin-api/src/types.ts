@@ -17,3 +17,9 @@ export interface GetEthPriceResponse {
     bid_size: number;
     last_trade: LastTrade;
 }
+
+export interface GetEthPriceContent {
+    symbol: string;
+    currency: string;
+    date: string;
+}

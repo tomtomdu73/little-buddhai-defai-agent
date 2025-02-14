@@ -1,4 +1,6 @@
 import {
+    composeContext,
+    generateObjectDeprecated,
     elizaLogger,
     Action,
     ActionExample,
@@ -6,14 +8,24 @@ import {
     IAgentRuntime,
     Memory,
     State,
+    ModelClass,
 } from "@elizaos/core";
 import { validateCoinApiConfig } from "../environment";
 import { getEthPriceExamples } from "../examples";
 import { createCoinAPIService } from "../services";
+import { getETHPriceTemplate } from "./template";
+import { isGetEthPriceContent } from "./validations";
+import type { GetEthPriceContent } from "../types";
 
 export const getEthPrice: Action = {
-    name: "COINAPI_GET_ETH_PRICE",
-    similes: ["ETH price", "Ethereum price", "ETH price of the day"],
+    name: "GET_ETH_PRICE",
+    similes: [
+        "CHECK_ETH_PRICE",
+        "PRICE_CHECK_ETH",
+        "GET_CRYPTO_ETH_PRICE",
+        "CHECK_CRYPTO_ETH_PRICE",
+        "GET_TOKEN_ETH_PRICE",
+    ],
     description: "Get the current price of Ethereum",
     validate: async (runtime: IAgentRuntime) => {
         await validateCoinApiConfig(runtime);
@@ -26,15 +38,47 @@ export const getEthPrice: Action = {
         _options: { [key: string]: unknown },
         callback: HandlerCallback
     ) => {
+        elizaLogger.log("Starting CoinApi GET_ETH_PRICE handler...");
+
         const config = await validateCoinApiConfig(runtime);
         const coinApiService = createCoinAPIService(config.COINAPI_API_KEY);
 
+        // Initialize or update state
+        let currentState = state;
+        if (!currentState) {
+            currentState = (await runtime.composeState(message)) as State;
+        } else {
+            currentState = await runtime.updateRecentMessageState(currentState);
+        }
+
         try {
-            const ethPriceData = await coinApiService.getEthPrice(null);
+            // Compose and generate price check content
+            const priceContext = composeContext({
+                state: currentState,
+                template: getETHPriceTemplate,
+            });
+
+            elizaLogger.log("Generated price check context:", priceContext);
+            const content = (await generateObjectDeprecated({
+                runtime,
+                context: priceContext,
+                modelClass: ModelClass.SMALL,
+            })) as unknown as GetEthPriceContent;
+
+            elizaLogger.log("Generated price check content:", content);
+
+            // Validate content
+            if (!isGetEthPriceContent(content)) {
+                throw new Error("Invalid start_date content");
+            }
+
+            const ethPriceData = await coinApiService.getEthPrice(content.date);
             elizaLogger.success(`Successfully fetched Eth price`);
             if (callback) {
                 callback({
-                    text: `Here is the Eth price of the Day: ${ethPriceData}`,
+                    text: `✅ Here is the price of ETH for ${
+                        content.date
+                    } found on CoinApi: ${JSON.stringify(ethPriceData)}`,
                 });
                 return true;
             }
